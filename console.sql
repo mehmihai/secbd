@@ -322,7 +322,6 @@ PROCEDURE ENCRYPT_SALARY as
     CURSOR C_CRYPT IS SELECT ID, SALARY from DRIVER;
     salary raw(100);
     salary_encrypted raw(100);
-    i number := 1;
 
 BEGIN
 
@@ -335,7 +334,6 @@ BEGIN
         salary_encrypted := dbms_crypto.encrypt(salary, encryption_type, encryption_key);
 
         UPDATE DRIVER SET SALARY = salary_encrypted WHERE ID = REC.ID;
-        i := i + 1;
 
     END LOOP;
     COMMIT;
@@ -346,8 +344,6 @@ PROCEDURE DECRYPT_SALARY AS
 
     salary raw(100);
     salary_decrypted raw(100);
-    i number := 1;
-
 BEGIN
 
     dbms_output.put_line('ENCRYPTION KEY: ' || encryption_key);
@@ -357,8 +353,6 @@ BEGIN
         salary_decrypted := dbms_crypto.decrypt(ln.SALARY, encryption_type, encryption_key);
 
         UPDATE DRIVER SET SALARY = utl_i18n.raw_to_char(salary_decrypted, 'AL32UTF8') WHERE ID = ln.ID;
-        i := i + 1;
-
     END LOOP;
     COMMIT;
 END;
