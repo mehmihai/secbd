@@ -1,6 +1,12 @@
 grant execute on DBMS_CRYPTO to SYSTEM;
 alter session set "_ORACLE_SCRIPT"= true;
 
+drop TABLESPACE default_ts
+/
+
+drop TABLESPACE temp_ts
+/
+
 drop table PRIVILEGE_TEST cascade constraints
 /
 
@@ -51,6 +57,14 @@ drop table USERS cascade constraints
 
 drop table PROMO_CODE cascade constraints
 /
+
+CREATE TABLESPACE default_ts
+    DATAFILE 'default_ts_data.dbf'
+    SIZE 10 m;
+
+CREATE TEMPORARY TABLESPACE temp_ts
+    TEMPFILE 'temp_ts_data.dbf'
+    SIZE 10 m;
 
 CREATE TABLE CATEGORY
 (
@@ -260,15 +274,15 @@ INSERT INTO RESTAURANT(ID, CATEGORY_ID, ADDRESS_ID, NAME, DESCRIPTION, RATING)
 VALUES (5, 1, 5, 'Restaurant5', 'asdasdasdas', 90);
 
 INSERT INTO USERS (ID, EMAIL, PASSWORD_HASH)
-VALUES (1, 'asd1@asd.com', '123145');
+VALUES (1, 'asd1@asd.com', '91FE1C4101DDE1D0B916C403CF3158B3');
 INSERT INTO USERS (ID, EMAIL, PASSWORD_HASH)
-VALUES (2, 'asd2@asd.com', '234523');
+VALUES (2, 'asd2@asd.com', '91FE1C4101DDE1D0B916C403CF3158B3');
 INSERT INTO USERS (ID, EMAIL, PASSWORD_HASH)
-VALUES (3, 'asd3@asd.com', '235553');
+VALUES (3, 'asd3@asd.com', '91FE1C4101DDE1D0B916C403CF3158B3');
 INSERT INTO USERS (ID, EMAIL, PASSWORD_HASH)
-VALUES (4, 'asd4@asd.com', '213525');
+VALUES (4, 'asd4@asd.com', '91FE1C4101DDE1D0B916C403CF3158B3');
 INSERT INTO USERS (ID, EMAIL, PASSWORD_HASH)
-VALUES (5, 'asd5@asd.com', '231566');
+VALUES (5, 'asd5@asd.com', '91FE1C4101DDE1D0B916C403CF3158B3');
 
 INSERT INTO CUSTOMER (ID, USER_ID, ADDRESS_ID, NAME, PHONE)
 VALUES (1, 1, 1, 'Andrei', '0733222333');
@@ -527,7 +541,32 @@ FROM DRIVER;
 BEGIN
     CRYPT.DECRYPT_SALARY();
 end;
+--hashing
+CREATE OR REPLACE FUNCTION HASH_PASSWORD(h_email IN VARCHAR2, h_password IN VARCHAR2) RETURN RAW IS
+final_hash RAW(2000);
+BEGIN
+    final_hash := DBMS_CRYPTO.HASH(utl_i18n.string_to_raw (h_password ||  upper(h_email),
+                              'AL32UTF8'
+                             ),
+      dbms_crypto.hash_md5
+     );
+    RETURN final_hash;
+END;
 
+CREATE SEQUENCE USER_ID INCREMENT BY 1 START WITH 7;
+
+CREATE OR REPLACE PROCEDURE INSERT_USER(i_email IN VARCHAR2,i_password IN VARCHAR2) IS
+    final_hash raw(2000);
+BEGIN
+    final_hash:= HASH_PASSWORD(i_email,i_password);
+    INSERT INTO USERS(ID, EMAIL, PASSWORD_HASH) VALUES(USER_ID.nextval, i_email, final_hash);
+END;
+
+BEGIN
+    INSERT_USER('test@test.com', '1234777');
+END;
+
+SELECT * FROM USERS;
 --AUDIT
 -- enabling audit
 ALTER SYSTEM SET audit_trail =db, extended SCOPE = SPFILE;
@@ -649,13 +688,6 @@ FROM CUSTOMER;
 
 
 -- TABLESPACES / USERS
-CREATE TABLESPACE default_ts
-    DATAFILE 'default_ts_data.dbf'
-    SIZE 10 m;
-
-CREATE TEMPORARY TABLESPACE temp_ts
-    TEMPFILE 'temp_ts_data.dbf'
-    SIZE 10 m;
 
 CREATE USER restaurant
     IDENTIFIED BY restaurant
@@ -671,6 +703,12 @@ CREATE USER customer
 
 CREATE USER driver
     IDENTIFIED BY driver
+    DEFAULT TABLESPACE default_ts
+    QUOTA 3 M ON default_ts
+    TEMPORARY TABLESPACE temp_ts;
+
+CREATE USER administrator
+    IDENTIFIED BY administrator
     DEFAULT TABLESPACE default_ts
     QUOTA 3 M ON default_ts
     TEMPORARY TABLESPACE temp_ts;
